@@ -1,9 +1,9 @@
-#bus <- read.csv("/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/bus_stop917.csv")
-#ticket <- read.csv("/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/bus_ticker_1M.csv")
-#level.busid <- (unique(bus$bus_id))
-#level.busline <- unique(bus$bus_line)
-#strptime(bus$timestamp, "%Y-%m-%d %H:%M:%S")
-#strptime(ticket$timestamp, "%Y-%m-%d %H:%M:%S")
+bus <- read.csv("/Users/santi/Desktop/nammon/bus_stop917.csv")
+ticket <- read.csv("/Users/santi/Desktop/nammon/bus_ticker_1M.csv")
+level.busid <- (unique(bus$bus_id))
+level.busline <- unique(bus$bus_line)
+strptime(bus$timestamp, "%Y-%m-%d %H:%M:%S")
+strptime(ticket$timestamp, "%Y-%m-%d %H:%M:%S")
 
 bus$ridership <- 0
 ticket$used <- 0
