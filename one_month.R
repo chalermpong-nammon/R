@@ -1,4 +1,3 @@
-library(foreach)
 #bus <- read.csv("/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/bus_one_month.csv")
 #ticket <- read.csv("/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/ticket_one_month.csv")
 #level.busid <- (unique(bus$bus_id))
@@ -11,8 +10,8 @@ library(foreach)
 bus$ridership <- 0
 ticket$used <- 0
 
-#bus$date <- as.numeric(as.Date(bus$timestamp))
-#ticket$date <- as.numeric(as.Date(ticket$timestamp))
+bus$date <- as.numeric(as.Date(bus$timestamp))
+ticket$date <- as.numeric(as.Date(ticket$timestamp))
 
 
 #valuable for debug
@@ -23,8 +22,7 @@ debug_ticket <- 0
 ticket <- ticket[ticket$bus_line %in%  level.busline , ]
 ticket <- ticket[ticket$bus_id %in% level.busid, ]
 
-#for(i in 1:nrow(ticket)){  for all ticket
-foreach(i = 1:10) %dopar% {
+for(i in 1:10){
   first.time = Sys.time()
   #select bus only equre busline and busid of ticket[i,]
   bus.from.ticket.i <- bus[bus$bus_line == ticket[i,]$bus_line 
@@ -38,12 +36,12 @@ foreach(i = 1:10) %dopar% {
   
   #plus rider ship at row of bus min diff
   bus[as.numeric(rownames(row.of.min.diff)),]$ridership = bus[as.numeric(rownames(row.of.min.diff)),]$ridership+1
-  ticket[i, "used"] = as.numeric(rownames(row.of.min.diff))
   last.time = Sys.time()
   print(last.time-first.time)
   print(i)
 }
 
 write.table(bus, file = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/bus_one_month_with_ridership.csv")
+write.table(ticket, file = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/ticket_one_month_with_ridership.csv")
 
 
