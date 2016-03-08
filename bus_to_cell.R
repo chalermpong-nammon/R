@@ -1,51 +1,63 @@
-bus <- read.csv("/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/bus_data/bus_with_ridership_1_1_2010.csv", sep = "", quote = "\"'")
+base.path.bus = "/Users/santi/Desktop/nammon/bus_with_ridership_"
+month.year = "_1_2010.csv"
 
-level.bus.stop <- unique(bus$bus_stop)
+# path for write file csv
+write.bus.path = "/Users/santi/Desktop/nammon/time_interval_with_ridership_"
 
-cell.df <- 0
-
-lat.start <- 38.667
-lat.end <- 38.7987
-
-lng.start <- -9.25253
-lng.end <- -9.09408
-
-time.slot <- ISOdatetime(2010,01,01,0,0,0) + seq(0:47)*30*60
-
-time.interval.with.ridership <- data.frame()
-
-
-for(i in 1: length(time.slot) ){
-  # subset in time
-  if(i == 1){
-    data.time_slot <- subset(bus,as.POSIXct(bus$timestamp) <= time.slot[i])
-  }else{
-    data.time_slot <- subset(bus, as.POSIXct(bus$timestamp) > time.slot[i-1] & as.POSIXct(bus$timestamp) <= time.slot[i])
+for(f in 1:31){
+  bus.path = paste(base.path.bus,f, sep = "")
+  bus.path = paste(bus.path, month.year, sep = "")
+  bus <- read.csv(bus.path,  sep = "", quote = "\"'")
+  
+  level.bus.stop <- unique(bus$bus_stop)
+  
+  cell.df <- 0
+  
+  lat.start <- 38.667
+  lat.end <- 38.7987
+  
+  lng.start <- -9.25253
+  lng.end <- -9.09408
+  
+  time.slot <- ISOdatetime(2010,01,01,0,0,0) + seq(0:47)*30*60
+  
+  time.interval.with.ridership <- data.frame()
+  
+  
+  for(i in 1: length(time.slot) ){
+    # subset in time
+    if(i == 1){
+      data.time_slot <- subset(bus,as.POSIXct(bus$timestamp) <= time.slot[i])
+    }else{
+      data.time_slot <- subset(bus, as.POSIXct(bus$timestamp) > time.slot[i-1] & as.POSIXct(bus$timestamp) <= time.slot[i])
+    }
+    
+    #create data frame of all bus stop
+    bus.30min <- data.frame(level.bus.stop)
+    
+    #assign time for all bus stop = 00:30
+    bus.30min$timeslot <- time.slot[i] 
+    
+    bus.30min$ridership <- 0
+    
+    for(j in 1: length(level.bus.stop)){
+      bus.stop.id = level.bus.stop[j]
+      bus.30min[bus.30min$level.bus.stop == bus.stop.id, ]$ridership <- sum(data.time_slot[ data.time_slot$bus_stop == bus.stop.id, ]$ridership)
+    }
+    
+    
+    time.interval.with.ridership <- rbind(time.interval.with.ridership, bus.30min)
+    
+    print(i)
+    
   }
   
-  #create data frame of all bus stop
-  bus.30min <- data.frame(level.bus.stop)
-  
-  #assign time for all bus stop = 00:30
-  bus.30min$timeslot <- time.slot[i] 
-  
-  bus.30min$ridership <- 0
-  
-  for(j in 1: length(level.bus.stop)){
-    bus.stop.id = level.bus.stop[j]
-    bus.30min[bus.30min$level.bus.stop == bus.stop.id, ]$ridership <- sum(data.time_slot[ data.time_slot$bus_stop == bus.stop.id, ]$ridership)
-  }
-  
-  
-  time.interval.with.ridership <- rbind(time.interval.with.ridership, bus.30min)
-  
-  print(i)
-  
+  print("day: "+i)
+  write.bus.path.dot.csv = paste(write.bus.path, f, sep = "")
+  write.bus.path.dot.csv = paste(write.bus.path.dot.csv, month.year, sep = "")
+  write.table(bus, file = write.bus.path.dot.csv)
+
 }
-
-write.table(time.interval.with.ridership, file = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/time_interval_1_1_2010_with_ridership.csv")
-
-
 
 
 # row = 1
