@@ -8,6 +8,7 @@ library(klaR)
 library(ggplot2) 
 library(RColorBrewer)
 library(TTR)
+library(zoom)
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
 #plot graph all ridership of cell
@@ -29,14 +30,43 @@ plot.graph.train.and.test <- function(df, cell.number, prediction){
   lines(test.cell.time, as.numeric(prediction)*tolelance,col="red")
 }
 
+plot.graph.ridership.and.test <- function(df, cell.number, test.cell){
+  cell.of.number <- df[df$cell == cell.number,]
+  cell.of.number <- cell.of.number[get.start.line.of.test(cell.of.number):nrow(cell.of.number),]
+  ridership <- cell.of.number$ridership
+  timeslot <- as.POSIXct(cell.of.number$timeslot)
+  
+  plot(timeslot, ridership, type="o", col = "green")
+  
+  title(main = paste(c("Cell Number ", cell.number), collapse = ""))
+  par(new=TRUE)
+  
+  lines(timeslot, test.cell$min_class,col = "blue", lty = "dashed")
+  par(new=TRUE)
+  lines(timeslot, test.cell$max_class,col = "blue")
+  par(new=TRUE)
+  
+  lines(timeslot, test.cell$min_Naive_MA,col = "red", lty = "dashed")
+  par(new=TRUE)
+  lines(timeslot, test.cell$max_Naive_MA,col = "red")
+}
+
 
 read.file.to.data.frame <- function(cell.size){
+  km.extension = "m/cell_with_ridership_"
+  km = "m_"
+  if(cell.size >= 1000){
+    cell.size = cell.size/1000
+    km.extension = "km/cell_with_ridership_"
+    km = "km_"
+  }
+  
   month.year = "_1_2010.csv"
   cell.path <- paste0("/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/cell_with_ridership_",
                       cell.size,
-                      "m/cell_with_ridership_",
+                      km.extension,
                       cell.size,
-                      "m_"
+                      km
                       , collapse = NULL);
   graph <- list();
   for(f in 4:31){
@@ -157,12 +187,19 @@ write.accuracy.to.file = function(dataFrame,cellSize, tolelance){
 
 
 #<-------------------------------------------Main------------------------------------------------>
-for(cell.size in seq(500, 100, by = -100)){
+
+ma.df <- data.frame(cell_size = numeric(0),tolelance = numeric(0),cell_number = numeric(0),previous= numeric(0),naive.ma.accuracy = numeric(0))
+ for(cell.size in c(500,400,300,250,100)){
+  # cell.size = 1.5
+  print("cell size")
   print(cell.size)
   # tolelance = 20
   # cell.size = 500
   df <- read.file.to.data.frame(cell.size)
   for(tolelance in seq(5, 15, by = 5)){
+    
+    print("tolelance")
+    print(tolelance)
     
     df$class <- make.class(df$ridership, tolerance)
     
@@ -180,68 +217,84 @@ for(cell.size in seq(500, 100, by = -100)){
     
     cell <- sort(unique(df.training$cell))
     
-    df.accuracy <- data.frame(cell = numeric(0), naive_accuracy = numeric(0),  naive_ma_accuracy = numeric(0))
     
-    previous = 10
-    for(cell.index in 1:length(cell)){
-      cell.number = cell[cell.index]
-      df.training.cell <- df.training[df.training$cell == cell.number,]
-      df.test.cell <- df.test[df.test$cell == cell.number,]
-      df.cell <- df[df$cell == cell.number,]
-      #for Naive bay
-      df.test.cell$prediction <- naive.bayes.model.prediction(df.training.cell, df.test.cell)
-      accuracy.na <- accuracy.naive.bayes(df.test.cell$prediction, df.test.cell$class)
-      table.predic <- table(df.test.cell$prediction, df.test.cell$class)
-      df.accuracy[cell.index,]$cell = cell.number
-      df.accuracy[cell.index,]$naive_accuracy = accuracy.na
+    
+    
+    for(previous in 2:10){
+      print("previous")
+      print(previous)
       
-      plot.graph.train.and.test(df, cell.number, df.test.cell$prediction);
-  
-      
-      #for MA
-      df.test.tmp <- df[startline.of.test:nrow(df),]
-      df.test.cell$ridership <- df.test.tmp[df.test$cell == cell.number,"ridership"]
-      df.test.cell <- assign.df.test.cell.colum(df.test.cell)
-      df.cell <- moving.average.model.prediction(df.cell)
-      if("2010-01-31 00:30:00" %in% df.cell$timeslot){
-        df.test.cell <- map.ma.data.to.naive.bayes(df.test.cell, df.cell)
+      df.accuracy <- data.frame(cell = numeric(0), naive_accuracy = numeric(0),  naive_ma_accuracy = numeric(0))
+    
+      for(cell.index in 1:length(cell)){
+        cell.number = cell[cell.index]
+        df.training.cell <- df.training[df.training$cell == cell.number,]
+        df.test.cell <- df.test[df.test$cell == cell.number,]
+        df.cell <- df[df$cell == cell.number,]
+        #for Naive bay
+        df.test.cell$prediction <- naive.bayes.model.prediction(df.training.cell, df.test.cell)
+        accuracy.na <- accuracy.naive.bayes(df.test.cell$prediction, df.test.cell$class)
+        table.predic <- table(df.test.cell$prediction, df.test.cell$class)
+        df.accuracy[cell.index,]$cell = cell.number
+        df.accuracy[cell.index,]$naive_accuracy = accuracy.na
         
-        table.predict.naive.ma <- table(df.test.cell$predict_Naive_MA)
-        count <- count(df.test.cell, "predict_Naive_MA")
-        Naive.MA.accuracy  = (count[count$predict_Naive_MA == "TRUE",]$freq)/sum(count$freq)
+        # plot.graph.train.and.test(df, cell.number, df.test.cell$prediction);
         
-        df.accuracy[cell.index,]$naive_ma_accuracy = Naive.MA.accuracy
         
-    #     print("cell number")
-    #     print(cell.number)
-    #     print("only naive")
-    #     print(accuracy.na)
-    #     print("naive with ma")
-    #     print(Naive.MA.accuracy)
-    #     print(cell.index)
+        
+          #for MA
+          df.test.tmp <- df[startline.of.test:nrow(df),]
+          df.test.cell$ridership <- df.test.tmp[df.test$cell == cell.number,"ridership"]
+          df.test.cell <- assign.df.test.cell.colum(df.test.cell)
+          df.cell <- moving.average.model.prediction(df.cell)
+          if("2010-01-31 00:30:00" %in% df.cell$timeslot){
+            df.test.cell <- map.ma.data.to.naive.bayes(df.test.cell, df.cell)
+            
+            table.predict.naive.ma <- table(df.test.cell$predict_Naive_MA)
+            count <- count(df.test.cell, "predict_Naive_MA")
+            Naive.MA.accuracy  = (count[count$predict_Naive_MA == "TRUE",]$freq)/sum(count$freq)
+            
+            df.accuracy[cell.index,]$naive_ma_accuracy = Naive.MA.accuracy
+            
+            ma.df <- rbind(ma.df, data.frame(cell_size=cell.size,tolelance= tolelance ,cell_number = cell.number,previous= previous,naive.ma.accuracy = Naive.MA.accuracy))
+  #           print("Previous")
+  #           print(previous)
+  #           print("cell number")
+  #           print(cell.number)
+  #           print("only naive")
+  #           print(accuracy.na)
+  #           print("naive with ma")
+  #           print(Naive.MA.accuracy)
+  #           print("-----------------------")
+          }
+        
       }
       
-    }
-    
-    #replace Na in accuracy ma with only naive
-    for(index in 1:nrow(df.accuracy)){
-      if(is.na(df.accuracy[index,]$naive_ma_accuracy)){
-        df.accuracy[index, ]$naive_ma_accuracy <- df.accuracy[index, ]$naive_accuracy
+      #replace Na in accuracy ma with only naive
+      for(index in 1:nrow(df.accuracy)){
+        if(is.na(df.accuracy[index,]$naive_ma_accuracy)){
+          df.accuracy[index, ]$naive_ma_accuracy <- df.accuracy[index, ]$naive_accuracy
+        }
       }
-    }
+      
+  #     print("tolelance")
+  #     print(tolelance)
     
-    print("tolelance")
-    print(tolelance)
-    
-    print("mean of all cell only naive")
-    print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
-    
-    print("mean of all cell naive with ma")
-    print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
-    write.accuracy.to.file(df.accuracy, cell.size, tolelance);
+#       print("previous")
+#       print(previous)
+      
+      # print("mean of all cell only naive")
+      # print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
+      
+      print("mean of all cell naive with ma")
+      print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
+      # print("--------------------------------")
+      
+  }
+    # write.accuracy.to.file(df.accuracy, cell.size, tolelance);
   }
   # rm(list = setdiff(ls(), lsf.str()))
-}
+ }
 
 
 
