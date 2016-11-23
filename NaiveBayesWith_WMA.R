@@ -122,12 +122,25 @@ naive.bayes.model.prediction <- function(df.training.cell, df.test.cell){
   return(predict(model, df.test.cell))
 }
 
-moving.average.model.prediction <- function(df.cell){
+moving.average.model.prediction <- function(df.cell, previous_){
   # df.cell <- df[df$cell == cell.number,]
   df.cell$MA <- 0
-  SMA <- SMA(df.cell[ 1:nrow(df.cell),]$ridership, n=previous)
+  SMA <- SMA(df.cell[ 1:nrow(df.cell),]$ridership, n=previous_)
   SMA[is.na(SMA)] <- 0
   df.cell$MA <- SMA
+  
+  df.cell$error <- 0
+  for(i in 1:nrow(df.cell)){
+    df.cell[i, ]$error = df.cell[i, ]$ridership - df.cell[i, ]$MA
+  }  
+  return(df.cell)
+}
+
+weigth.moving.average.model.prediction <- function(df.cell, previous_){
+  df.cell$MA <- 0
+  WMA <- WMA(df.cell[ 1:nrow(df.cell),]$ridership, n=previous)
+  WMA[is.na(WMA)] <- 0
+  df.cell$MA <- WMA
   
   df.cell$error <- 0
   for(i in 1:nrow(df.cell)){
@@ -222,10 +235,10 @@ accuracy.na.ma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previ
 for(cell.size in c(1500,1250,1000,750,500)){
   print("cell size")
   print(cell.size)
-
+  
   df <- read.file.to.data.frame(cell.size)
   for(tolelance in seq(5, 40, by = 5)){
-  # for(tolelance in c(40)){
+    # for(tolelance in c(40)){
     print("tolelance")
     print(tolelance)
     
@@ -269,7 +282,7 @@ for(cell.size in c(1500,1250,1000,750,500)){
         df.test.tmp <- df[startline.of.test:nrow(df),]
         df.test.cell$ridership <- df.test.tmp[df.test$cell == cell.number,"ridership"]
         df.test.cell <- assign.df.test.cell.colum(df.test.cell)
-        df.cell <- exponential.moving.average.model.prediction(df.cell, previous)
+        df.cell <- weigth.moving.average.model.prediction(df.cell, previous)
         if("2010-01-31 00:30:00" %in% df.cell$timeslot){
           df.test.cell <- map.ma.data.to.naive.bayes(df.test.cell, df.cell)
           
@@ -280,9 +293,9 @@ for(cell.size in c(1500,1250,1000,750,500)){
           df.accuracy[cell.index,]$naive_ma_accuracy = Naive.MA.accuracy
           
           ma.df <- rbind(ma.df, data.frame(cell_size=cell.size,tolelance= tolelance ,cell_number = cell.number,previous= previous,naive.ma.accuracy = Naive.MA.accuracy))
-        
+          
         }
-      
+        
         # plot.graph.train.and.test(df, cell.number, df.test.cell$prediction);
       }
       
@@ -310,7 +323,7 @@ for(cell.size in c(1500,1250,1000,750,500)){
       
       
     }
-    write.accuracy.nb.ma.to.file(accuracy.na.ma, "ema");
+    write.accuracy.nb.ma.to.file(accuracy.na.ma, "wma");
     
     # write.accuracy.to.file(df.accuracy, cell.size, tolelance);
     

@@ -216,7 +216,7 @@ write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
 #<-------------------------------------------Main------------------------------------------------>
 
 ma.df <- data.frame(cell_size = numeric(0),tolelance = numeric(0),cell_number = numeric(0),previous= numeric(0),naive.ma.accuracy = numeric(0))
-accuracy.na.ema <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previous= numeric(0),na = numeric(0),na.plus.ma = numeric(0))
+accuracy.na.ma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previous= numeric(0),na = numeric(0),na.plus.ma = numeric(0))
 
 for(cell.size in c(1500,1250,1000,750,500)){
   print("cell size")
@@ -305,11 +305,11 @@ for(cell.size in c(1500,1250,1000,750,500)){
       print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
       # print("--------------------------------")
       
-      accuracy.na.ema <- rbind(accuracy.na.ema, data.frame(cell_size=cell.size,tolelance= tolelance,previous= previous,na = mean(df.accuracy$naive_accuracy, na.rm=TRUE), na.plus.ma = mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE)))
+      accuracy.na.ma <- rbind(accuracy.na.ma, data.frame(cell_size=cell.size,tolelance= tolelance,previous= previous,na = mean(df.accuracy$naive_accuracy, na.rm=TRUE), na.plus.ma = mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE)))
       
       
     }
-    write.accuracy.nb.ma.to.file(accuracy.na.ema, "ema");
+    write.accuracy.nb.ma.to.file(accuracy.na.ma, "sma");
     
     # write.accuracy.to.file(df.accuracy, cell.size, tolelance);
     
