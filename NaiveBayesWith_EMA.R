@@ -11,6 +11,9 @@ library(TTR)
 library(zoom)
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
+root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
+
+
 #plot graph all ridership of cell
 plot.graph.train.and.test <- function(df, cell.number, prediction){
   cell.of.number <- df[df$cell == cell.number,]
@@ -62,7 +65,8 @@ read.file.to.data.frame <- function(cell.size){
   }
   
   month.year = "_1_2010.csv"
-  cell.path <- paste0("/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/cell_with_ridership_",
+  cell.path <- paste0(root.path,
+                      "cell_with_ridership_",
                       cell.size,
                       km.extension,
                       cell.size,
@@ -132,6 +136,19 @@ moving.average.model.prediction <- function(df.cell){
   return(df.cell)
 }
 
+exponential.moving.average.model.prediction <- function(df.cell, previous_){
+  df.cell$MA <- 0
+  MA <- EMA(df.cell[1:nrow(df.cell),]$ridership, n = previous_)
+  MA[is.na(MA)] <- 0
+  df.cell$MA <- MA
+  
+  df.cell$error <- 0
+  for (i in 1:nrow(df.cell)) {
+    df.cell[i,]$error = df.cell[i,]$ridership - df.cell[i,]$MA
+  }
+  return(df.cell)
+}
+
 assign.df.test.cell.colum <- function(df.test.cell){
   df.test.cell$MA_error <- 0
   df.test.cell$min_class <- 0
@@ -146,8 +163,8 @@ map.ma.data.to.naive.bayes <- function(df.test.cell, df.cell){
   endline.of.trainning.ma = get.end.line.trianning.ma(df.cell)
   for(j in 1:nrow(df.test.cell)){
     df.test.cell[j, ]$MA_error = df.cell[j+(endline.of.trainning.ma),]$error
-    df.test.cell[j, ]$min_class = as.numeric( sub("\\((.+),.*", "\\1", df.test.cell[j, ]$class))
-    df.test.cell[j, ]$max_class = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", df.test.cell[j, ]$class))
+    df.test.cell[j, ]$min_class = as.numeric( sub("\\((.+),.*", "\\1", df.test.cell[j, ]$prediction))
+    df.test.cell[j, ]$max_class = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", df.test.cell[j, ]$prediction))
     
     df.test.cell[j, ]$min_Naive_MA <- df.test.cell[j, ]$min_class + df.test.cell[j, ]$MA_error
     df.test.cell[j, ]$max_Naive_MA <- df.test.cell[j, ]$max_class + df.test.cell[j, ]$MA_error
@@ -176,11 +193,22 @@ accuracy.naive.bayes <- function(prediction, class){
 
 
 write.accuracy.to.file = function(dataFrame,cellSize, tolelance){
-  write.bus.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/accuracy_data/cellsize_"
-  write.bus.path = paste(write.bus.path, cellSize, sep = "")
-  write.bus.path = paste(write.bus.path, "_tolelance_", sep = "")
-  write.bus.path = paste(write.bus.path, tolelance, sep = "")
-  write.bus.path = paste(write.bus.path, ".csv", sep = "")
+  write.bus.path <- paste0(root.path,
+                           "accuracy_data/cellsize_",
+                           cellSize,
+                           "_tolelance_",
+                           tolelance,
+                           ".csv",
+                           collapse = NULL);
+  write.table(dataFrame, file = write.bus.path, row.names = FALSE, quote=c(1),sep = ",")
+}
+
+write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
+  write.bus.path <- paste0(root.path,
+                           "accuracy/NB_plus",
+                           type.ma,
+                           ".csv",
+                           collapse = NULL);
   write.table(dataFrame, file = write.bus.path, row.names = FALSE, quote=c(1),sep = ",")
 }
 #<-------------------------------------------END FUNCTION------------------------------------------------>
@@ -189,18 +217,15 @@ write.accuracy.to.file = function(dataFrame,cellSize, tolelance){
 #<-------------------------------------------Main------------------------------------------------>
 
 ma.df <- data.frame(cell_size = numeric(0),tolelance = numeric(0),cell_number = numeric(0),previous= numeric(0),naive.ma.accuracy = numeric(0))
-accuracy.na.sma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previous= numeric(0),na = numeric(0),na.plus.ma = numeric(0))
+accuracy.na.ema <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previous= numeric(0),na = numeric(0),na.plus.ma = numeric(0))
 
-
- for(cell.size in c(1250)){
-  # cell.size = 1.5
+for(cell.size in c(1500,1250,1000,750,500)){
   print("cell size")
   print(cell.size)
-  # tolelance = 20
-  # cell.size = 500
+
   df <- read.file.to.data.frame(cell.size)
-  # for(tolelance in seq(10, 40, by = 5)){
-  for(tolelance in c(5)){
+  for(tolelance in seq(5, 40, by = 5)){
+  # for(tolelance in c(40)){
     print("tolelance")
     print(tolelance)
     
@@ -220,15 +245,12 @@ accuracy.na.sma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),prev
     
     cell <- sort(unique(df.training$cell))
     
-    
-    
-    
     for(previous in 2:10){
       print("previous")
       print(previous)
       
       df.accuracy <- data.frame(cell = numeric(0), naive_accuracy = numeric(0),  naive_ma_accuracy = numeric(0))
-    
+      
       for(cell.index in 1:length(cell)){
         cell.number = cell[cell.index]
         df.training.cell <- df.training[df.training$cell == cell.number,]
@@ -243,34 +265,25 @@ accuracy.na.sma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),prev
         
         # plot.graph.train.and.test(df, cell.number, df.test.cell$prediction);
         
+        #for MA
+        df.test.tmp <- df[startline.of.test:nrow(df),]
+        df.test.cell$ridership <- df.test.tmp[df.test$cell == cell.number,"ridership"]
+        df.test.cell <- assign.df.test.cell.colum(df.test.cell)
+        df.cell <- exponential.moving.average.model.prediction(df.cell, previous)
+        if("2010-01-31 00:30:00" %in% df.cell$timeslot){
+          df.test.cell <- map.ma.data.to.naive.bayes(df.test.cell, df.cell)
+          
+          table.predict.naive.ma <- table(df.test.cell$predict_Naive_MA)
+          count <- count(df.test.cell, "predict_Naive_MA")
+          Naive.MA.accuracy  = (count[count$predict_Naive_MA == "TRUE",]$freq)/sum(count$freq)
+          
+          df.accuracy[cell.index,]$naive_ma_accuracy = Naive.MA.accuracy
+          
+          ma.df <- rbind(ma.df, data.frame(cell_size=cell.size,tolelance= tolelance ,cell_number = cell.number,previous= previous,naive.ma.accuracy = Naive.MA.accuracy))
         
-        
-          #for MA
-          df.test.tmp <- df[startline.of.test:nrow(df),]
-          df.test.cell$ridership <- df.test.tmp[df.test$cell == cell.number,"ridership"]
-          df.test.cell <- assign.df.test.cell.colum(df.test.cell)
-          df.cell <- moving.average.model.prediction(df.cell)
-          if("2010-01-31 00:30:00" %in% df.cell$timeslot){
-            df.test.cell <- map.ma.data.to.naive.bayes(df.test.cell, df.cell)
-            
-            table.predict.naive.ma <- table(df.test.cell$predict_Naive_MA)
-            count <- count(df.test.cell, "predict_Naive_MA")
-            Naive.MA.accuracy  = (count[count$predict_Naive_MA == "TRUE",]$freq)/sum(count$freq)
-            
-            df.accuracy[cell.index,]$naive_ma_accuracy = Naive.MA.accuracy
-            
-            ma.df <- rbind(ma.df, data.frame(cell_size=cell.size,tolelance= tolelance ,cell_number = cell.number,previous= previous,naive.ma.accuracy = Naive.MA.accuracy))
-  #           print("Previous")
-  #           print(previous)
-  #           print("cell number")
-  #           print(cell.number)
-  #           print("only naive")
-  #           print(accuracy.na)
-  #           print("naive with ma")
-  #           print(Naive.MA.accuracy)
-  #           print("-----------------------")
-          }
-        
+        }
+      
+        # plot.graph.train.and.test(df, cell.number, df.test.cell$prediction);
       }
       
       #replace Na in accuracy ma with only naive
@@ -280,27 +293,34 @@ accuracy.na.sma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),prev
         }
       }
       
-  #     print("tolelance")
-  #     print(tolelance)
-    
-#       print("previous")
-#       print(previous)
+      #     print("tolelance")
+      #     print(tolelance)
       
-      # print("mean of all cell only naive")
-      # print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
+      #       print("previous")
+      #       print(previous)
       
-      print("mean of all cell naive with ma")
+      print("mean of all cell NA")
+      print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
+      
+      print("mean of all cell NA + EMA")
       print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
       # print("--------------------------------")
       
-      accuracy.na.sma <- rbind(accuracy.na.sma, data.frame(cell_size=cell.size,tolelance= tolelance,previous= previous,na = mean(df.accuracy$naive_accuracy, na.rm=TRUE), na.plus.ma = mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE)))
+      accuracy.na.ema <- rbind(accuracy.na.ema, data.frame(cell_size=cell.size,tolelance= tolelance,previous= previous,na = mean(df.accuracy$naive_accuracy, na.rm=TRUE), na.plus.ma = mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE)))
       
       
-  }
+    }
+    write.accuracy.nb.ma.to.file(accuracy.na.ema, "ema");
+    
     # write.accuracy.to.file(df.accuracy, cell.size, tolelance);
+    
+    
+    
+    
+    
   }
   # rm(list = setdiff(ls(), lsf.str()))
- }
+}
 
 
 

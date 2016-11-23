@@ -1,4 +1,3 @@
-#Naive Bayes classifier grid cell
 library(plyr);
 library(plotly);
 library(class) ;
@@ -8,7 +7,7 @@ library(klaR)
 library(ggplot2) 
 library(RColorBrewer)
 library(TTR)
-library(zoom)
+library(rpart)
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
 #plot graph all ridership of cell
@@ -30,43 +29,14 @@ plot.graph.train.and.test <- function(df, cell.number, prediction){
   lines(test.cell.time, as.numeric(prediction)*tolelance,col="red")
 }
 
-plot.graph.ridership.and.test <- function(df, cell.number, test.cell){
-  cell.of.number <- df[df$cell == cell.number,]
-  cell.of.number <- cell.of.number[get.start.line.of.test(cell.of.number):nrow(cell.of.number),]
-  ridership <- cell.of.number$ridership
-  timeslot <- as.POSIXct(cell.of.number$timeslot)
-  
-  plot(timeslot, ridership, type="o", col = "green")
-  
-  title(main = paste(c("Cell Number ", cell.number), collapse = ""))
-  par(new=TRUE)
-  
-  lines(timeslot, test.cell$min_class,col = "blue", lty = "dashed")
-  par(new=TRUE)
-  lines(timeslot, test.cell$max_class,col = "blue")
-  par(new=TRUE)
-  
-  lines(timeslot, test.cell$min_Naive_MA,col = "red", lty = "dashed")
-  par(new=TRUE)
-  lines(timeslot, test.cell$max_Naive_MA,col = "red")
-}
-
 
 read.file.to.data.frame <- function(cell.size){
-  km.extension = "m/cell_with_ridership_"
-  km = "m_"
-  if(cell.size >= 1000){
-    cell.size = cell.size/1000
-    km.extension = "km/cell_with_ridership_"
-    km = "km_"
-  }
-  
   month.year = "_1_2010.csv"
   cell.path <- paste0("/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/cell_with_ridership_",
                       cell.size,
-                      km.extension,
+                      "m/cell_with_ridership_",
                       cell.size,
-                      km
+                      "m_"
                       , collapse = NULL);
   graph <- list();
   for(f in 4:31){
@@ -106,16 +76,21 @@ select.test <- function(df){
 }
 
 get.end.line.trianning.ma = function(df.cell){
-  return (head(which(df.cell$timeslot == "2010-01-24 23:59:59"), n =1));
+  return (head(which(df.cell$timeslot == "2010-01-10 23:59:59"), n =1));
 }
 
 get.start.line.of.test <- function(df){
-  return (head(which(df$timeslot == "2010-01-25 00:30:00"), n =1));
+  return (head(which(df$timeslot == "2010-01-11 00:30:00"), n =1));
 }
 
 naive.bayes.model.prediction <- function(df.training.cell, df.test.cell){
   model <- naiveBayes(class~., data=df.training.cell)
   return(predict(model, df.test.cell))
+}
+
+decision.tree.model.prediction <- function(df.training.cell, df.test.cell){
+  model <- rpart(class~., df.training.cell, method = "class")
+  return(predict(model, df.test.cell, type="class"))
 }
 
 moving.average.model.prediction <- function(df.cell){
@@ -187,120 +162,63 @@ write.accuracy.to.file = function(dataFrame,cellSize, tolelance){
 
 
 #<-------------------------------------------Main------------------------------------------------>
+# for(cell.size in seq(400, 100, by = -100)){
+#print(cell.size)
+tolelance = 20
+cell.size = 500
+df <- read.file.to.data.frame(cell.size)
+# for(tolelance in seq(20, 40, by = 5)){
 
-ma.df <- data.frame(cell_size = numeric(0),tolelance = numeric(0),cell_number = numeric(0),previous= numeric(0),naive.ma.accuracy = numeric(0))
-accuracy.na.sma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previous= numeric(0),na = numeric(0),na.plus.ma = numeric(0))
+df$class <- make.class(df$ridership, tolerance)
+
+#for map foctor to number
+df$time <- as.factor(df$time)
+df$day <- as.factor(df$day)
+df$class <- as.factor(df$class)
+
+startline.of.test = get.start.line.of.test(df);
+endline.of.trainning = startline.of.test - 1;
 
 
- for(cell.size in c(1250)){
-  # cell.size = 1.5
-  print("cell size")
-  print(cell.size)
-  # tolelance = 20
-  # cell.size = 500
-  df <- read.file.to.data.frame(cell.size)
-  # for(tolelance in seq(10, 40, by = 5)){
-  for(tolelance in c(5)){
-    print("tolelance")
-    print(tolelance)
-    
-    df$class <- make.class(df$ridership, tolerance)
-    
-    #for map foctor to number
-    df$time <- as.factor(df$time)
-    df$day <- as.factor(df$day)
-    df$class <- as.factor(df$class)
-    
-    startline.of.test = get.start.line.of.test(df);
-    endline.of.trainning = startline.of.test - 1;
-    
-    
-    df.training <- select.trianing(df)  # 3 week
-    df.test <- select.test(df)  # 1 week
-    
-    cell <- sort(unique(df.training$cell))
-    
-    
-    
-    
-    for(previous in 2:10){
-      print("previous")
-      print(previous)
-      
-      df.accuracy <- data.frame(cell = numeric(0), naive_accuracy = numeric(0),  naive_ma_accuracy = numeric(0))
-    
-      for(cell.index in 1:length(cell)){
-        cell.number = cell[cell.index]
-        df.training.cell <- df.training[df.training$cell == cell.number,]
-        df.test.cell <- df.test[df.test$cell == cell.number,]
-        df.cell <- df[df$cell == cell.number,]
-        #for Naive bay
-        df.test.cell$prediction <- naive.bayes.model.prediction(df.training.cell, df.test.cell)
-        accuracy.na <- accuracy.naive.bayes(df.test.cell$prediction, df.test.cell$class)
-        table.predic <- table(df.test.cell$prediction, df.test.cell$class)
-        df.accuracy[cell.index,]$cell = cell.number
-        df.accuracy[cell.index,]$naive_accuracy = accuracy.na
-        
-        # plot.graph.train.and.test(df, cell.number, df.test.cell$prediction);
-        
-        
-        
-          #for MA
-          df.test.tmp <- df[startline.of.test:nrow(df),]
-          df.test.cell$ridership <- df.test.tmp[df.test$cell == cell.number,"ridership"]
-          df.test.cell <- assign.df.test.cell.colum(df.test.cell)
-          df.cell <- moving.average.model.prediction(df.cell)
-          if("2010-01-31 00:30:00" %in% df.cell$timeslot){
-            df.test.cell <- map.ma.data.to.naive.bayes(df.test.cell, df.cell)
-            
-            table.predict.naive.ma <- table(df.test.cell$predict_Naive_MA)
-            count <- count(df.test.cell, "predict_Naive_MA")
-            Naive.MA.accuracy  = (count[count$predict_Naive_MA == "TRUE",]$freq)/sum(count$freq)
-            
-            df.accuracy[cell.index,]$naive_ma_accuracy = Naive.MA.accuracy
-            
-            ma.df <- rbind(ma.df, data.frame(cell_size=cell.size,tolelance= tolelance ,cell_number = cell.number,previous= previous,naive.ma.accuracy = Naive.MA.accuracy))
-  #           print("Previous")
-  #           print(previous)
-  #           print("cell number")
-  #           print(cell.number)
-  #           print("only naive")
-  #           print(accuracy.na)
-  #           print("naive with ma")
-  #           print(Naive.MA.accuracy)
-  #           print("-----------------------")
-          }
-        
-      }
-      
-      #replace Na in accuracy ma with only naive
-      for(index in 1:nrow(df.accuracy)){
-        if(is.na(df.accuracy[index,]$naive_ma_accuracy)){
-          df.accuracy[index, ]$naive_ma_accuracy <- df.accuracy[index, ]$naive_accuracy
-        }
-      }
-      
-  #     print("tolelance")
-  #     print(tolelance)
-    
-#       print("previous")
-#       print(previous)
-      
-      # print("mean of all cell only naive")
-      # print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
-      
-      print("mean of all cell naive with ma")
-      print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
-      # print("--------------------------------")
-      
-      accuracy.na.sma <- rbind(accuracy.na.sma, data.frame(cell_size=cell.size,tolelance= tolelance,previous= previous,na = mean(df.accuracy$naive_accuracy, na.rm=TRUE), na.plus.ma = mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE)))
-      
-      
-  }
-    # write.accuracy.to.file(df.accuracy, cell.size, tolelance);
-  }
-  # rm(list = setdiff(ls(), lsf.str()))
- }
+df.training <- select.trianing(df)  # 3 week
+df.test <- select.test(df)  # 1 week
+
+cell <- sort(unique(df.training$cell))
+
+df.accuracy <- data.frame(cell = numeric(0), naive_accuracy = numeric(0),  naive_ma_accuracy = numeric(0))
+
+previous = 10
+# for(cell.index in 1:length(cell)){
+cell.index = 50
+cell.number = cell[cell.index]
+df.training.cell <- df.training[df.training$cell == cell.number,]
+df.test.cell <- df.test[df.test$cell == cell.number,]
+df.cell <- df[df$cell == cell.number,]
+
+df.test.cell$prediction <- decision.tree.model.prediction(df.training.cell, df.test.cell)
+accuracy.na <- accuracy.naive.bayes(df.test.cell$prediction, df.test.cell$class)
+table.predic <- table(df.test.cell$prediction, df.test.cell$class)
+
+
+df.accuracy[cell.index,]$cell = cell.number
+df.accuracy[cell.index,]$naive_accuracy = accuracy.na
+
+plot.graph.train.and.test(df, cell.number, df.test.cell$prediction);
+
+# }
+
+print("tolelance")
+print(tolelance)
+
+print("mean of all cell only naive")
+print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
+
+print("mean of all cell naive with ma")
+print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
+# write.accuracy.to.file(df.accuracy, cell.size, tolelance);
+# }
+# rm(list = setdiff(ls(), lsf.str()))
+# }
 
 
 
