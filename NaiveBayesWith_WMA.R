@@ -11,7 +11,7 @@ library(TTR)
 library(zoom)
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
-root.path = "/Grad_workspace/"
+root.path = "/home/Grad_workspace/"
 # root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
 
 

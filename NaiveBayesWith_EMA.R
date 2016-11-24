@@ -11,8 +11,8 @@ library(TTR)
 library(zoom)
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
-root.path = "/Grad_workspace/"
-# root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
+# root.path = "/home/Grad_workspace/"
+root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
 
 
 #plot graph all ridership of cell
@@ -167,9 +167,13 @@ map.ma.data.to.naive.bayes <- function(df.test.cell, df.cell){
     df.test.cell[j, ]$min_class = as.numeric( sub("\\((.+),.*", "\\1", df.test.cell[j, ]$prediction))
     df.test.cell[j, ]$max_class = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", df.test.cell[j, ]$prediction))
     
-    df.test.cell[j, ]$min_Naive_MA <- df.test.cell[(j), ]$min_class + df.test.cell[(j), ]$MA_error
-    df.test.cell[j, ]$max_Naive_MA <- df.test.cell[(j), ]$max_class + df.test.cell[(j), ]$MA_error
-    
+    if(j == 1){
+      df.test.cell[j, ]$min_Naive_MA <- df.test.cell[(j), ]$min_class
+      df.test.cell[j, ]$max_Naive_MA <- df.test.cell[(j), ]$max_class
+    }else{
+      df.test.cell[j, ]$min_Naive_MA <- df.test.cell[(j), ]$min_class + df.test.cell[(j-1), ]$MA_error
+      df.test.cell[j, ]$max_Naive_MA <- df.test.cell[(j), ]$max_class + df.test.cell[(j-1), ]$MA_error
+    }
     line.error <- j
     if(df.test.cell[j, ]$max_Naive_MA <= 0){
       df.test.cell[j, ]$max_Naive_MA = 0
@@ -220,13 +224,13 @@ write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
 ma.df <- data.frame(cell_size = numeric(0),tolelance = numeric(0),cell_number = numeric(0),previous= numeric(0),naive.ma.accuracy = numeric(0))
 accuracy.na.ma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previous= numeric(0),na = numeric(0),na.plus.ma = numeric(0))
 
-for(cell.size in c(1500)){
+for(cell.size in c(1500, 1250, 1000, 750, 500, 250, 100)){
   print("cell size")
   print(cell.size)
 
   df <- read.file.to.data.frame(cell.size)
-  # for(tolelance in seq(5, 40, by = 5)){
-  for(tolelance in c(10)){
+  for(tolelance in seq(5, 40, by = 5)){
+  # for(tolelance in c(10)){
     print("tolelance")
     print(tolelance)
     
@@ -246,7 +250,7 @@ for(cell.size in c(1500)){
     
     cell <- sort(unique(df.training$cell))
     
-    for(previous in c(2)){
+    for(previous in 2:5){
       print("previous")
       print(previous)
       
