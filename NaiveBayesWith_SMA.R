@@ -11,8 +11,8 @@ library(TTR)
 library(zoom)
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
-root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
-
+root.path = "/Grad_workspace/"
+# root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
 
 #plot graph all ridership of cell
 plot.graph.train.and.test <- function(df, cell.number, prediction){
@@ -204,7 +204,7 @@ write.accuracy.to.file = function(dataFrame,cellSize, tolelance){
 
 write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
   write.bus.path <- paste0(root.path,
-                           "accuracy/NB_plus",
+                           "accuracy/NB_plus_",
                            type.ma,
                            ".csv",
                            collapse = NULL);
@@ -298,11 +298,11 @@ for(cell.size in c(1500,1250,1000,750,500)){
       #       print("previous")
       #       print(previous)
       
-      print("mean of all cell NA")
-      print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
-      
-      print("mean of all cell NA + EMA")
-      print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
+#       print("mean of all cell NA")
+#       print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
+#       
+#       print("mean of all cell NA + EMA")
+#       print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
       # print("--------------------------------")
       
       accuracy.na.ma <- rbind(accuracy.na.ma, data.frame(cell_size=cell.size,tolelance= tolelance,previous= previous,na = mean(df.accuracy$naive_accuracy, na.rm=TRUE), na.plus.ma = mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE)))

@@ -11,7 +11,8 @@ library(TTR)
 library(zoom)
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
-root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
+root.path = "/Grad_workspace/"
+# root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
 
 
 #plot graph all ridership of cell
@@ -166,8 +167,8 @@ map.ma.data.to.naive.bayes <- function(df.test.cell, df.cell){
     df.test.cell[j, ]$min_class = as.numeric( sub("\\((.+),.*", "\\1", df.test.cell[j, ]$prediction))
     df.test.cell[j, ]$max_class = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", df.test.cell[j, ]$prediction))
     
-    df.test.cell[j, ]$min_Naive_MA <- df.test.cell[j, ]$min_class + df.test.cell[j, ]$MA_error
-    df.test.cell[j, ]$max_Naive_MA <- df.test.cell[j, ]$max_class + df.test.cell[j, ]$MA_error
+    df.test.cell[j, ]$min_Naive_MA <- df.test.cell[(j), ]$min_class + df.test.cell[(j), ]$MA_error
+    df.test.cell[j, ]$max_Naive_MA <- df.test.cell[(j), ]$max_class + df.test.cell[(j), ]$MA_error
     
     line.error <- j
     if(df.test.cell[j, ]$max_Naive_MA <= 0){
@@ -205,7 +206,7 @@ write.accuracy.to.file = function(dataFrame,cellSize, tolelance){
 
 write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
   write.bus.path <- paste0(root.path,
-                           "accuracy/NB_plus",
+                           "accuracy/NB_plus_",
                            type.ma,
                            ".csv",
                            collapse = NULL);
@@ -219,13 +220,13 @@ write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
 ma.df <- data.frame(cell_size = numeric(0),tolelance = numeric(0),cell_number = numeric(0),previous= numeric(0),naive.ma.accuracy = numeric(0))
 accuracy.na.ma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previous= numeric(0),na = numeric(0),na.plus.ma = numeric(0))
 
-for(cell.size in c(1500,1250,1000,750,500)){
+for(cell.size in c(1500)){
   print("cell size")
   print(cell.size)
 
   df <- read.file.to.data.frame(cell.size)
-  for(tolelance in seq(5, 40, by = 5)){
-  # for(tolelance in c(40)){
+  # for(tolelance in seq(5, 40, by = 5)){
+  for(tolelance in c(10)){
     print("tolelance")
     print(tolelance)
     
@@ -245,7 +246,7 @@ for(cell.size in c(1500,1250,1000,750,500)){
     
     cell <- sort(unique(df.training$cell))
     
-    for(previous in 2:10){
+    for(previous in c(2)){
       print("previous")
       print(previous)
       
@@ -299,12 +300,12 @@ for(cell.size in c(1500,1250,1000,750,500)){
       #       print("previous")
       #       print(previous)
       
-      print("mean of all cell NA")
-      print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
-      
-      print("mean of all cell NA + EMA")
-      print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
-      # print("--------------------------------")
+      # print("mean of all cell NA")
+#       print(mean(df.accuracy$naive_accuracy, na.rm=TRUE))
+#       
+#       print("mean of all cell NA + EMA")
+#       print(mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE))
+#       # print("--------------------------------")
       
       accuracy.na.ma <- rbind(accuracy.na.ma, data.frame(cell_size=cell.size,tolelance= tolelance,previous= previous,na = mean(df.accuracy$naive_accuracy, na.rm=TRUE), na.plus.ma = mean(df.accuracy$naive_ma_accuracy, na.rm=TRUE)))
       
