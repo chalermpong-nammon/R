@@ -12,8 +12,8 @@ library(TTR)
 library(zoom)
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
-# root.path = "/home/Grad_workspace/"
-root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
+root.path = "/home/Grad_workspace/"
+# root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
 
 
 #plot graph all ridership of cell
