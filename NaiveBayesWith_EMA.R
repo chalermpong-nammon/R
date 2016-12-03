@@ -1,5 +1,5 @@
 #Naive Bayes classifier grid cell
-nstall.packages(c("plyr", "plotly", "class", "e1071", "caret", "klaR", "ggplot2", "RColorBrewer", "TTR", "zoom"))
+install.packages(c("plyr", "plotly", "class", "e1071", "caret", "klaR", "ggplot2", "RColorBrewer", "TTR", "zoom"), repos="http://cran.rstudio.com/")
 library(plyr);
 library(plotly);
 library(class) ;
