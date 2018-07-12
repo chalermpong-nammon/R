@@ -192,7 +192,7 @@ ma.df <- data.frame(cell_size = numeric(0),tolelance = numeric(0),cell_number = 
 accuracy.na.sma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previous= numeric(0),na = numeric(0),na.plus.ma = numeric(0))
 
 
- for(cell.size in c(1250)){
+ for(cell.size in c(1500)){
   # cell.size = 1.5
   print("cell size")
   print(cell.size)

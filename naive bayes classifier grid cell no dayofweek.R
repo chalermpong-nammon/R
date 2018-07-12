@@ -1,4 +1,5 @@
 #Naive Bayes classifier grid cell
+# install.packages(c("plyr", "plotly", "class", "e1071", "caret", "klaR", "ggplot2", "RColorBrewer"))
 library(plyr);
 library(plotly);
 library(class) ;
@@ -10,17 +11,17 @@ library(RColorBrewer)
 
 month.year = "_1_2010.csv"
 
-#start.time = Sys.time();
-cell.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/cell_with_ridership_1km/cell_with_ridership_1km_"
+start.time = Sys.time();
+cell.path = "~/Grad_workspace/cell_with_ridership_1km/cell_with_ridership_1km_"
 
 # path for write file csv
-write.cell.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/naive_bayes_only_time_1km_"
+write.cell.path = "~/Grad_workspace/naive_bayes_only_time_1km_"
 graph <- list();
 graph.test <- list();
 
 # include tainnig data
 for(f in 4:31){
-  
+  # for (f in c(4)){
   bus.path = paste(cell.path,f, sep = "")
   bus.path = paste(bus.path, month.year, sep = "")
   cells <- read.csv( bus.path ,  sep = "", quote = "\"'")

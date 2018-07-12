@@ -13,8 +13,6 @@ library(zoom)
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
 root.path = "/home/Grad_workspace/"
-# root.path = "/Users/chalermpongsomdulyawat/Desktop/Grad_workspace/"
-
 
 #plot graph all ridership of cell
 plot.graph.train.and.test <- function(df, cell.number, prediction){
@@ -225,13 +223,15 @@ write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
 ma.df <- data.frame(cell_size = numeric(0),tolelance = numeric(0),cell_number = numeric(0),previous= numeric(0),naive.ma.accuracy = numeric(0))
 accuracy.na.ma <- data.frame(cell_size = numeric(0),tolelance = numeric(0),previous= numeric(0),na = numeric(0),na.plus.ma = numeric(0))
 
-for(cell.size in c(1500, 1250, 1000, 750, 500, 250, 100)){
+# for(cell.size in c(1500, 1250, 1000, 750, 500, 250, 100)){
+for(cell.size in c(1500){
+  
   print("cell size")
   print(cell.size)
 
   df <- read.file.to.data.frame(cell.size)
-  for(tolelance in seq(5, 40, by = 5)){
-  # for(tolelance in c(10)){
+  # for(tolelance in seq(5, 40, by = 5)){
+  for(tolelance in c(10)){
     print("tolelance")
     print(tolelance)
     
