@@ -11,7 +11,7 @@ read.file.to.data.frame <- function(cell.size){
     km.extension = "km/cell_with_ridership_"
     km = "km_"
   }
-
+  
   month.year = "_1_2010.csv"
   cell.path <- paste0(root.path,
                       "cell_with_ridership_",
@@ -25,13 +25,13 @@ read.file.to.data.frame <- function(cell.size){
     bus.path = paste(cell.path, f, sep = "")
     bus.path = paste(bus.path, month.year, sep = "")
     cells <- read.csv( bus.path ,  sep = "", quote = "\"'")
-
+    
     timeslot.with.ridership <- ddply(cells, c('timeslot',"cell"), summarise, ridership  = sum(ridership) );
     timeslot.with.ridership$timeslot <- as.POSIXct(timeslot.with.ridership$timeslot)
     timeslot.with.ridership[strftime(timeslot.with.ridership$timeslot, format="%H:%M:%S") == "00:00:00",]$timeslot <- timeslot.with.ridership[strftime(timeslot.with.ridership$timeslot, format="%H:%M:%S") == "00:00:00",]$timeslot -1
     timeslot.with.ridership$timeslot <- strftime(timeslot.with.ridership$timeslot)
     timeslot.with.ridership$day <- weekdays(as.Date(timeslot.with.ridership$timeslot))
-
+    
     graph[[f]] <- timeslot.with.ridership
   }
   df <- ldply (graph, data.frame)
@@ -73,7 +73,7 @@ process.MA.error <- function(df.cell){
   df.cell$error <- 0
   for(i in 1:nrow(df.cell)){
     if(i != 1 ){
-      df.cell[i, ]$error <- df.cell[i, ]$ridership + df.cell[(i-1), ]$MAf
+      df.cell[i, ]$error <- df.cell[i, ]$ridership - df.cell[(i-1), ]$MAf
     }
   }
   return(df.cell$error)
@@ -92,15 +92,15 @@ map.MA.to.NB <- function(df.cell.test, nrow.trianing){
   for(j in 1:nrow(df.cell.test)) {
     df.cell.test[j,]$min_predict = as.numeric(sub("\\((.+),.*", "\\1", df.cell.test[j,]$prediction))
     df.cell.test[j,]$max_predict = as.numeric(sub("[^,]*,([^]]*)\\]", "\\1", df.cell.test[j,]$prediction))
-
+    
     if (j == 1) {
       df.cell.test[j,]$min_NB_MA <- df.cell.test[j,]$min_predict + df.cell.trianing[nrow.trianing,]$MA_error
       df.cell.test[j,]$max_NB_MA <- df.cell.test[j,]$max_predict + df.cell.trianing[nrow.trianing,]$MA_error
     }else{
-      df.cell.test[j,]$min_NB_MA <- df.cell.test[j,]$min_predict - df.cell.test[(j - 1),]$MA_error
-      df.cell.test[j,]$max_NB_MA <- df.cell.test[j,]$max_predict - df.cell.test[(j - 1),]$MA_error
+      df.cell.test[j,]$min_NB_MA <- df.cell.test[j,]$min_predict + df.cell.test[(j - 1),]$MA_error
+      df.cell.test[j,]$max_NB_MA <- df.cell.test[j,]$max_predict + df.cell.test[(j - 1),]$MA_error
     }
-
+    
     if((df.cell.test[j, ]$ridership > df.cell.test[j, ]$min_NB_MA) & (df.cell.test[j, ]$ridership <= df.cell.test[j, ]$max_NB_MA)){
       df.cell.test[j, ]$predict_NB_MA = TRUE;
     }else{
@@ -139,10 +139,10 @@ accuracy.naive.bayes <- function(prediction, class){
 
 save.accuracy.cell.size <- function(accuracy.each.cell){
   df.accuracy.cell.size <- data.frame(Tolerance = seq(5,40, by = 5))
-  for(cell.size in c(1000)){
-
+  for(cell.size in c(100,250,500,750,1000,1250,1500)){
+    
     v.average.accuracy <- vector('numeric')
-    for(tolerance in seq(20,40, by = 5)){
+    for(tolerance in seq(5,40, by = 5)){
       accuracy.selected <- accuracy.NB.each.cell[accuracy.NB.each.cell$cell_size == cell.size & accuracy.NB.each.cell$tolerance == tolerance,]
       sum.all.accuracy.cell <- sum(accuracy.selected$accuracy_NB)
       num.row <- nrow(accuracy.selected)
@@ -154,16 +154,6 @@ save.accuracy.cell.size <- function(accuracy.each.cell){
   return(df.accuracy.cell.size)
 }
 
-write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
-  write.bus.path <- paste0(root.path,
-                           "accuracy/NB_plus_",
-                           type.ma,
-                           ".csv",
-                           collapse = NULL);
-  write.table(dataFrame, file = write.bus.path, row.names = FALSE, quote=c(1),sep = ",")
-}
-
-
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Above this is function and library ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #   Step: 1. Read file csv to dataframe
 #         2. Make class from ridership and tolerance
@@ -173,8 +163,6 @@ write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
 #         6. Test data with model
 #         7. Extract accuracy each cell from test data
 #         8. Sum accuracy each cell to overall accuracy cell size
-
-source("function.R")
 root.path = "~/Grad_workspace/"
 accuracy.NB.each.cell <- data.frame(cell_size = numeric(0),
                                     tolerance = numeric(0),
@@ -197,17 +185,17 @@ accuracy.NB.MA <- data.frame(cell_size = numeric(0),
 
 
 
-for(cell.size in c(1000)){
+# for(cell.size in c(750,500)){
+  for(cell.size in c(500)){
   print(cell.size)
   df <- read.file.to.data.frame(cell.size)
   unique.cell <- sort(unique(df$cell))
   
-  # for(tolerance in seq(20,40, by=5)){
-    for(tolerance in c(10)){
+  # for(tolerance in seq(5,20, by = 5)){
+   for(tolerance in c(10)){
     print(tolerance)
-
     df$class <- make.class(df$ridership, tolerance)
-    df <- make.factor.for.NB(df); #Maybe use cell in factor to heigh accuracy
+    df <- make.factor.for.NB(df);
     
     for(previous in c(2:10)) {
       df.accuracy <- data.frame(cell = numeric(0), NB_accuracy = numeric(0),  NB_MA_accuracy = numeric(0))
@@ -217,17 +205,17 @@ for(cell.size in c(1000)){
         
         df.cell <- df[df$cell == cell.number,]
         if(nrow(df.cell) != 1344) next
-  
+        
         df.cell$MAf <- simple.moving.average.model.prediction(df.cell$ridership, previous)
-        df.cell$MA_error <- process.MA.error(df.cell) #maybe fomular wrong because should use ridership[t]-MAf[t-1]
+        df.cell$MA_error <- process.MA.error(df.cell)
         
         df.cell.trianing <- select.trianing(df.cell)
         df.cell.test <- select.test(df.cell)
         
-        df.cell.test$prediction <- naive.bayes.model.prediction(df.cell.trianing[,c("day","time","class")], df.cell.test[,c("day","time","class")])
+        df.cell.test$prediction <- naive.bayes.model.prediction(df.cell.trianing[,c(4,5,6)], df.cell.test[,c(4,5,6)])
         accuracy.NB <- accuracy.naive.bayes(df.cell.test$prediction, df.cell.test$class)
         accuracy.NB.each.cell <- rbind(accuracy.NB.each.cell, data.frame(cell_size=cell.size,tolerance= tolerance ,cell_number = cell.number,accuracy_NB = accuracy.NB))
-      
+        
         df.cell.test <- assign.df.cell.test.colum(df.cell.test)
         df.cell.test <- map.MA.to.NB(df.cell.test, nrow(df.cell.trianing))
         
@@ -257,7 +245,4 @@ for(cell.size in c(1000)){
   }
 }
 
-# df.NB.accuracy.cell.size <- save.accuracy.cell.size(accuracy.NB.each.cell)
-
-write.accuracy.nb.ma.to.file(accuracy.NB.MA, "sma");
-write.accuracy.nb.ma.to.file(accuracy.NB.each.cell, "SMA_each_cell");
+df.NB.accuracy.cell.size <- save.accuracy.cell.size(accuracy.NB.each.cell)

@@ -1,21 +1,15 @@
 #Naive Bayes classifier grid cell
-list.of.packages <- c("plyr", "plotly", "class", "e1071", "caret", "klaR", "ggplot2", "RColorBrewer", "TTR", "zoom")
+list.of.packages <- c("plyr", "e1071", "caret", "e1071", "TTR")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos="http://cran.rstudio.com/")
+
 library(plyr);
-library(plotly);
-library(class) ;
-library(e1071); 
-library(caret)
-library(klaR)
-library(ggplot2) 
-library(RColorBrewer)
-library(TTR)
-library(zoom)
+library(e1071);
+library(caret);
+library(TTR);
 #<------------------------------------ START FUNCTION ---------------------------------------------------->
 
 root.path = "~/Grad_workspace/"
-
 read.file.to.data.frame <- function(cell.size){
   km.extension = "m/cell_with_ridership_"
   km = "m_"
@@ -53,99 +47,95 @@ read.file.to.data.frame <- function(cell.size){
 }
 
 make.class <- function(ridership, tolerance){
-  return (cut(ridership, breaks = seq(min(ridership)-tolelance, max(ridership)+tolelance, by = tolelance)) )
+  return (cut(ridership, breaks = seq(min(ridership)-tolerance, max(ridership)+tolerance, by = tolerance)) )
+}
+
+make.factor.for.NB <- function(df){
+  #for map foctor to number
+  df$time <- as.factor(df$time)
+  df$day <- as.factor(df$day)
+  df$class <- as.factor(df$class)
+  return(df)
+}
+
+simple.moving.average.model.prediction <- function(serie.value, previous_){
+  SMA <- SMA(serie.value, n=previous_)
+  SMA[is.na(SMA)] <- 0
+  return(SMA)
+}
+
+weigth.moving.average.model.prediction <- function(serie.value, previous_){
+  WMA <- WMA(serie.value, n=previous)
+  WMA[is.na(WMA)] <- 0
+  return(WMA)
+}
+
+exponential.moving.average.model.prediction <- function(serie.value, previous_){
+  EMA <- EMA(serie.value, n = previous_)
+  EMA[is.na(EMA)] <- 0
+  return(EMA)
+}
+
+process.MA.error <- function(df.cell){
+  df.cell$error <- 0
+  for(i in 1:nrow(df.cell)){
+    if(i != 1 ){
+      df.cell[i, ]$error <- df.cell[i, ]$ridership - df.cell[(i-1), ]$MAf
+    }
+  }
+  return(df.cell$error)
+}
+
+assign.df.cell.test.colum <- function(df.cell.test){
+  df.cell.test$min_predict <- 0
+  df.cell.test$max_predict <- 0
+  df.cell.test$min_NB_MA <- 0
+  df.cell.test$max_NB_MA <- 0
+  df.cell.test$predict_NB_MA <- FALSE
+  return(df.cell.test)
+}
+
+map.MA.to.NB <- function(df.cell.test, nrow.trianing){
+  for(j in 1:nrow(df.cell.test)) {
+    df.cell.test[j,]$min_predict = as.numeric(sub("\\((.+),.*", "\\1", df.cell.test[j,]$prediction))
+    df.cell.test[j,]$max_predict = as.numeric(sub("[^,]*,([^]]*)\\]", "\\1", df.cell.test[j,]$prediction))
+    
+    if (j == 1) {
+      df.cell.test[j,]$min_NB_MA <- df.cell.test[j,]$min_predict + df.cell.trianing[nrow.trianing,]$MA_error
+      df.cell.test[j,]$max_NB_MA <- df.cell.test[j,]$max_predict + df.cell.trianing[nrow.trianing,]$MA_error
+    }else{
+      df.cell.test[j,]$min_NB_MA <- df.cell.test[j,]$min_predict + df.cell.test[(j - 1),]$MA_error
+      df.cell.test[j,]$max_NB_MA <- df.cell.test[j,]$max_predict + df.cell.test[(j - 1),]$MA_error
+    }
+    
+    if((df.cell.test[j, ]$ridership > df.cell.test[j, ]$min_NB_MA) & (df.cell.test[j, ]$ridership <= df.cell.test[j, ]$max_NB_MA)){
+      df.cell.test[j, ]$predict_NB_MA = TRUE;
+    }else{
+      df.cell.test[j, ]$predict_NB_MA = FALSE;
+    }
+  }
+  return(df.cell.test)
+}
+
+get.end.line.index.trianning = function(df.cell){
+  return (tail(which(df.cell$timeslot == "2010-01-24 23:59:59"), n =1));
 }
 
 select.trianing <- function(df){
-  endline.of.trainning = get.start.line.of.test(df) - 1;
+  endline.of.trainning = get.end.line.index.trianning(df);
   df.training <- df[1:endline.of.trainning,]
-  df.training <- df.training[,c("cell","day","time","class")]
   return(df.training)
 }
 
 select.test <- function(df){
-  startline.of.test = get.start.line.of.test(df)
+  startline.of.test = get.end.line.index.trianning(df)+1
   df.test <- df[startline.of.test:nrow(df),]
-  df.test <- df.test[,c("cell","day","time","class")]
   return(df.test)
 }
 
-get.end.line.trianning.ma = function(df.cell){
-  return (tail(which(df.cell$timeslot == "2010-01-24 23:59:59"), n =1));
-}
-
-get.start.line.of.test <- function(df){
-  return (head(which(df$timeslot == "2010-01-25 00:30:00"), n =1));
-}
-
-naive.bayes.model.prediction <- function(df.training.cell, df.test.cell){
-  model <- naiveBayes(class~., data=df.training.cell)
-  return(predict(model, df.test.cell))
-}
-
-moving.average.model.prediction <- function(df.cell, previous_){
-  df.cell$MA <- 0
-  SMA <- SMA(df.cell[ 1:nrow(df.cell),]$ridership, n=previous_)
-  SMA[is.na(SMA)] <- 0
-  df.cell$MA <- SMA
-  
-  df.cell$error <- 0
-  for(i in 1:nrow(df.cell)){
-    df.cell[i, ]$error = df.cell[i, ]$ridership - df.cell[i, ]$MA
-  }  
-  return(df.cell)
-}
-
-exponential.moving.average.model.prediction <- function(df.cell, previous_){
-  df.cell$MA <- 0
-  MA <- EMA(df.cell[1:nrow(df.cell),]$ridership, n = previous_)
-  MA[is.na(MA)] <- 0
-  df.cell$MA <- MA
-  
-  df.cell$error <- 0
-  for (i in 1:nrow(df.cell)) {
-    df.cell[i,]$error = df.cell[i,]$ridership - df.cell[i,]$MA
-  }
-  return(df.cell)
-}
-
-assign.df.test.cell.colum <- function(df.test.cell){
-  df.test.cell$MA_error <- 0
-  df.test.cell$min_class <- 0
-  df.test.cell$max_class <- 0
-  df.test.cell$min_Naive_MA <- 0
-  df.test.cell$max_Naive_MA <- 0
-  df.test.cell$predict_Naive_MA <- FALSE
-  return(df.test.cell)
-}
-
-map.ma.data.to.naive.bayes <- function(df.test.cell, df.cell){
-  endline.of.trainning.ma = get.end.line.trianning.ma(df.cell)
-  for(j in 1:nrow(df.test.cell)){
-    df.test.cell[j, ]$MA_error = df.cell[j+(endline.of.trainning.ma),]$error
-    df.test.cell[j, ]$min_class = as.numeric( sub("\\((.+),.*", "\\1", df.test.cell[j, ]$prediction))
-    df.test.cell[j, ]$max_class = as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", df.test.cell[j, ]$prediction))
-    
-    if(j > 1 ){
-     df.test.cell[j, ]$min_Naive_MA <- df.test.cell[j, ]$min_class + df.test.cell[j-1, ]$MA_error
-     df.test.cell[j, ]$max_Naive_MA <- df.test.cell[j, ]$max_class + df.test.cell[j-1, ]$MA_error
-    }else{
-      df.test.cell[j, ]$min_Naive_MA <- df.test.cell[j, ]$min_class
-      df.test.cell[j, ]$max_Naive_MA <- df.test.cell[j, ]$max_class
-    }
-    line.error <- j
-    if(df.test.cell[j, ]$max_Naive_MA <= 0){
-      df.test.cell[j, ]$max_Naive_MA = 0
-    }
-    
-    if((df.test.cell[j, ]$ridership > df.test.cell[j, ]$min_Naive_MA) 
-       & (df.test.cell[j, ]$ridership <= df.test.cell[j, ]$max_Naive_MA)){
-      df.test.cell[j, ]$predict_Naive_MA = TRUE;
-    }else{
-      df.test.cell[j, ]$predict_Naive_MA = FALSE;
-    }
-  }
-  return(df.test.cell)
+naive.bayes.model.prediction <- function(df.training, df.test){
+  model <- naiveBayes(class~., data = df.training)
+  return(predict(model, df.test))
 }
 
 accuracy.naive.bayes <- function(prediction, class){
@@ -154,63 +144,47 @@ accuracy.naive.bayes <- function(prediction, class){
   return( overall['Accuracy'] )
 }
 
-#plot graph all ridership of cell
+write.accuracy.NB.to.file = function(dataFrame){ 
+  write.bus.path <- paste0(root.path, 
+                           "Result/Accuracy/NB/sumarize.csv", 
+                           collapse = NULL); 
+  write.table(dataFrame, file = write.bus.path, row.names = FALSE, quote=c(1),sep = ",") 
+} 
+
+save.accuracy.cell.size <- function(accuracy.each.cell){
+  df.accuracy.cell.size <- data.frame(Tolerance = seq(5,40, by = 5))
+  for(cell.size in c(100,250,500,750,1000,1250,1500)){
+    
+    v.average.accuracy <- vector('numeric')
+    for(tolerance in seq(5,40, by = 5)){
+      accuracy.selected <- accuracy.NB.each.cell[accuracy.NB.each.cell$cell_size == cell.size & accuracy.NB.each.cell$tolerance == tolerance,]
+      sum.all.accuracy.cell <- sum(accuracy.selected$accuracy_NB)
+      num.row <- nrow(accuracy.selected)
+      average.accuracy <- sum.all.accuracy.cell/num.row
+      v.average.accuracy <- append(v.average.accuracy, average.accuracy)
+    }
+    df.accuracy.cell.size[toString(cell.size)] <- v.average.accuracy
+  }
+  return(df.accuracy.cell.size)
+}
+
+
 plot.graph.train.and.test <- function(df, cell.number, prediction){
   cell.of.number <- df[df$cell == cell.number,]
   cell.of.number$timeslot <- as.POSIXct(cell.of.number$timeslot)
-  ridership <- as.numeric(cell.of.number$class)*tolelance
+  ridership <- as.numeric(cell.of.number$class)*tolerance
   timeslot <- as.POSIXct(cell.of.number$timeslot)
   plot(timeslot, ridership, type="l")
   
   title(main = paste(c("Cell Number ", cell.number), collapse = ""))
   par(new=TRUE)
-  lines(cell.of.number$timeslot, ((as.numeric(cell.of.number$class)-1)*tolelance),col = "blue")
+  lines(cell.of.number$timeslot, (as.numeric(cell.of.number$class)*tolerance),col = "blue")
   par(new=TRUE)
   
-  df.test.tmp <- df[get.start.line.of.test(df):nrow(df), ]
+  df.test.tmp <- df[(get.end.line.index.trianning(df)+1):nrow(df), ]
   test.cell <- df.test.tmp[df.test.tmp$cell == cell.number, ]
   test.cell.time <- as.POSIXct(test.cell$timeslot)
-  lines(test.cell.time, (as.numeric(prediction)-1)*tolelance,col="red")
+  lines(test.cell.time, as.numeric(prediction)*tolerance,col="red")
 }
 
-plot.graph.ridership.and.test <- function(df, cell.number, test.cell){
-  cell.of.number <- df[df$cell == cell.number,]
-  cell.of.number <- cell.of.number[get.start.line.of.test(cell.of.number):nrow(cell.of.number),]
-  ridership <- cell.of.number$ridership
-  timeslot <- as.POSIXct(cell.of.number$timeslot)
-  
-  plot(timeslot, ridership, type="o", col = "green")
-  
-  title(main = paste(c("Cell Number ", cell.number), collapse = ""))
-  par(new=TRUE)
-  
-  lines(timeslot, test.cell$min_class,col = "blue", lty = "dashed")
-  par(new=TRUE)
-  lines(timeslot, test.cell$max_class,col = "blue")
-  par(new=TRUE)
-  
-  lines(timeslot, test.cell$min_Naive_MA,col = "red", lty = "dashed")
-  par(new=TRUE)
-  lines(timeslot, test.cell$max_Naive_MA,col = "red")
-}
-
-write.accuracy.to.file = function(dataFrame,cellSize, tolelance){
-  write.bus.path <- paste0(root.path,
-                           "Result/Accuracy/cellsize_",
-                           cellSize,
-                           "_tolelance_",
-                           tolelance,
-                           ".csv",
-                           collapse = NULL);
-  write.table(dataFrame, file = write.bus.path, row.names = FALSE, quote=c(1),sep = ",")
-}
-
-write.accuracy.nb.ma.to.file = function(dataFrame, type.ma){
-  write.bus.path <- paste0(root.path,
-                           "accuracy/NB_plus_",
-                           type.ma,
-                           ".csv",
-                           collapse = NULL);
-  write.table(dataFrame, file = write.bus.path, row.names = FALSE, quote=c(1),sep = ",")
-}
 #<-------------------------------------------END FUNCTION------------------------------------------------>

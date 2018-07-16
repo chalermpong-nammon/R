@@ -12,48 +12,60 @@
 source("function.R")
 start_time <- Sys.time()
 
-# cell.size <- c(1500)
-for (cell.size in c(1500,1250,1000,750,500)){
+accuracy.NB.each.cell <- data.frame(cell_size = numeric(0),
+                                    tolerance = numeric(0),
+                                    cell_number = numeric(0),
+                                    accuracy_NB = numeric(0))
+
+accuracy.NB <- data.frame(cell_size = numeric(0),
+                             tolerance = numeric(0),
+                             NB = numeric(0))
+
+cell.size <- c(1500)
+# for (cell.size in c(1500,1250,1000,750,500,250,100)){
   print(paste0("Cell size: ",cell.size))
   df <- read.file.to.data.frame(cell.size)
+  unique.cell <- sort(unique(df$cell))
   
-  # tolelance <- c(20)
-  for(tolelance in seq(5, 40, by = 5)){
-    print(paste0("tolelance is: ",tolelance))
+  tolerance <- c(20)
+  # for(tolerance in seq(5, 40, by = 5)){
+    print(paste0("tolerance is: ",tolerance))
     
     df$class <- make.class(df$ridership, tolerance)
-    
-    df$day <- as.factor(df$day)
-    df$time <- as.factor(df$time)
-    df$class <- as.factor(df$class)
-    
-    startline.of.test = get.start.line.of.test(df);
-    endline.of.trainning = startline.of.test - 1;
+    df <- make.factor.for.NB(df);
     
     df.training <- select.trianing(df)  # 3 week
     df.test <- select.test(df)  # 1 week
     
-    cell <- sort(unique(df.training$cell))
-    df.accuracy <- data.frame(cell = numeric(0), naive_accuracy = numeric(0),  naive_ma_accuracy = numeric(0))
-    for(cell.index in 1:length(cell)){
-      cell.number = cell[cell.index]
+    
+    df.accuracy <- data.frame(cell = numeric(0), NB_accuracy = numeric(0))
+    for(cell.index in 1:length(unique.cell)){
+      cell.number = unique.cell[cell.index]
+      
+      #prevent no have data in test or train cell
+      df.cell <- df[df$cell == cell.number,]
+      if(nrow(df.cell) != 1344) next
+      
       df.training.cell <- df.training[df.training$cell == cell.number,]
       df.test.cell <- df.test[df.test$cell == cell.number,]
-      df.cell <- df[df$cell == cell.number,]
+      
       #for Naive bayes
-      df.test.cell$prediction <- naive.bayes.model.prediction(df.training.cell, df.test.cell)
-      accuracy.nb <- accuracy.naive.bayes(df.test.cell$prediction, df.test.cell$class)
-      table.predic <- table(df.test.cell$prediction, df.test.cell$class)
+      df.test.cell$prediction <- naive.bayes.model.prediction(df.training.cell[,c("day","time","class")], df.test.cell[,c("day","time")])
+      accuracy <- accuracy.naive.bayes(df.test.cell$prediction, df.test.cell$class)
+      accuracy.NB.each.cell <- rbind(accuracy.NB.each.cell, data.frame(cell_size=cell.size,tolerance= tolerance ,cell_number = cell.number,accuracy_NB = accuracy))
+      # table.predic <- table(df.test.cell$prediction, df.test.cell$class)
       
       df.accuracy[cell.index,]$cell = cell.number
-      df.accuracy[cell.index,]$naive_accuracy = accuracy.nb
+      df.accuracy[cell.index,]$NB_accuracy = accuracy
       # plot.graph.train.and.test(df, cell.number, df.test.cell$prediction); 
     }
-    print(paste0("Mean value of all cell NaiveBayes: ",mean(df.accuracy$naive_accuracy, na.rm=TRUE)))
-    
-    df.accuracy <- df.accuracy[,c("cell","naive_accuracy")]
-    write.accuracy.to.file(df.accuracy, cell.size, tolelance)
-  }
-}
+    print(paste0("Mean value of all cell NaiveBayes: ",mean(df.accuracy$NB_accuracy, na.rm=TRUE)))
+    accuracy.NB <- rbind(accuracy.NB, data.frame(cell_size=cell.size,
+                                                    tolerance= tolerance,
+                                                    NB = mean(df.accuracy$NB_accuracy, na.rm=TRUE)))
+  # }
+# }
+# write.accuracy.NB.to.file(accuracy.NB)
+# df.NB.accuracy.cell.size <- save.accuracy.cell.size(accuracy.NB.each.cell)
 end_time <- Sys.time()
 print(paste("Running time", end_time - start_time))
